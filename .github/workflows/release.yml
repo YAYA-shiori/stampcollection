@@ -2,7 +2,7 @@ name: Build and Release NAR
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -69,7 +69,7 @@ jobs:
           fi
 
       # updates2.dau をリポジトリに commit & push
-      # → raw.githubusercontent.com/ponapalt/ponyaduma/master/updates2.dau で参照可能になる
+      # → raw.githubusercontent.com/YAYA-shiori/stampcollection/main/updates2.dau で参照可能になる
       # GITHUB_TOKEN による push はワークフローを再トリガーしない
       - name: Commit updates2.dau
         if: steps.check.outputs.changed == 'true'
