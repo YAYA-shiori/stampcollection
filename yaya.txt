@@ -1,0 +1,11 @@
+charset.dic, UTF-8
+charset.output, UTF-8
+charset.file, Shift_JIS
+charset.save, UTF-8
+charset.extension, Shift_JIS
+dic, yaya_plugin2.dic
+dic, sc.dic
+log, yaya.log
+ignoreiolog, ID: OnSecondChange
+iolog, off
+save.encode,on

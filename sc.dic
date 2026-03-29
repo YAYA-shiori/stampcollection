@@ -1,0 +1,428 @@
+// ****使い方****
+// 
+// 関数名はイベント名そのままです。SHIORI/3.0テンプレートのように、
+// 文字列取得時頭にOn_がつくようなことはありません。
+// 
+// 値を返すとその内容をSakuraScriptとして実行します
+// 以下の変数に代入すると、動作を制御できます。
+//
+//   res_event , res_reference[0]...[n]
+//     指定したイベントをReferenceつきで発生します。referenceは省略可
+//
+//   res_target
+//     スクリプトやイベントをどのゴーストに送るかを指定します。
+//     Sakura名を指定してください。また、__SYSTEM_ALL_GHOST__で全起動中ゴーストに通知します。
+//     省略すると「プラグインメニューを実行したゴースト」に送ります
+//
+//   res_marker
+//     バルーンのマーカー(下に小さく出るステータス表示)に表示する文字を指定できます。
+//
+
+
+version{'StampCollection/1.4'}
+
+
+// プラグインロード ////////////////////////////////////////
+
+pload {
+glist = IARRAY
+	if stamplist == "" {
+	stamplist = IARRAY
+	ディレクトリ中PNG削除("icon")
+	}
+プラグイン起動=1
+stampinfo
+res_target = '__SYSTEM_ALL_GHOST__'
+
+}
+
+
+punload {
+
+ERASEVAR('path')
+ERASEVAR('glist')
+ERASEVAR('tmv0')
+ERASEVAR('res_event')
+ERASEVAR('reference')
+ERASEVAR('rpage')
+ERASEVAR('stampfn')
+ERASEVAR('res_target')
+
+ERASEVAR ('SHIORI3FW.ValueexList')
+	for _i=0;(ISVAR("valueex%(_i)"))==1;_i++ {
+	ERASEVAR ("valueex%(_i)")
+	}
+プラグイン起動=0
+stampinfo
+res_target = '__SYSTEM_ALL_GHOST__'
+}
+
+
+// スタンプ帳 ////////////////////////////////////////
+
+OnMenuExec {
+// reference[0] ページを開きたいゴースト名
+
+res_marker=version
+
+spage=""
+
+	if (ARRAYSIZE(stamplist))>=1 {
+	rpage=1
+		if (reference[0])!="" {
+			//指定されたゴーストのスタンプがあるか調べる
+			_l=0
+			_r=-1
+			foreach stamplist; _i {
+				//あればページナンバー取得
+				_r=TOINT((STRSTR(_i,"%(reference[0])%(CHR(1))",0)))
+					if _r==0 {
+					spage=_l
+					break
+					}
+			_l++
+			}
+		}
+
+		if spage!="" {スタンプ詳細}
+		else {stampmenu}
+	}
+	else {
+	"\b[2]\![set,autoscroll,disable]\![set,choicetimeout,-1]\_q/
+	\![*] \f[bold,1]スタンプ帳\f[bold,0]\n\n/
+	* まだスタンプはありません */
+	\n\n\q[× Close,bcls]\e"
+	}
+
+}
+
+stampmenujump{
+rpage=reference[2]
+stampmenu
+}
+
+項目数{49}
+改行間隔{7}
+
+stampmenu{
+
+	//res_target = '__SYSTEM_ALL_GHOST__'
+
+	"\b[2]\![set,autoscroll,disable]\![set,choicetimeout,-1]\_q/
+	\![*] \f[bold,1]スタンプ帳\f[bold,0]　全 %(ARRAYSIZE(stamplist)) コ\n\n"
+	--
+	_page=(TOINT(rpage))
+	_ページ数=(ARRAYSIZE(stamplist))/(項目数)
+	if (ARRAYSIZE(stamplist))%(項目数)>0 {_ページ数=_ページ数+1}
+	_txt=""
+	"Page -"
+	--
+		for _i = 1; _i<=_ページ数; _i++ {
+			if _i==_page {_txt="%(_txt)\f[bold,1] %(_i) \f[bold,0]"}
+			else {_txt="%(_txt)\q[ %(_i) ,stampmenujump,%(_i)]"}
+		}
+	_txt
+	--
+	"\n\n[half]"
+	--
+	tmv0=""
+	_要素数=ARRAYSIZE(stamplist)
+	_ループ開始=(((_page-1)*項目数))+1
+	_ループ終了=((_page-1)*項目数)+項目数
+	_loop=1
+
+	foreach stamplist; _f {
+		if _loop>=_ループ開始 && _loop<=_ループ終了 {
+
+		_No=_loop
+		_配列=SPLIT(stamplist[((TOINT(_No))-1)],(CHR(1)))
+
+			tmv0=tmv0+"\__q[スタンプ詳細,%(_No-1),%(_page)]\_b[%(pluginpath)icon\%(_配列[1]),inline]\__q "
+
+				if (_loop%改行間隔)==0&&(_loop%項目数)!=0 {
+				tmv0=tmv0+"\n\n[half]"
+				}
+
+		}
+
+	_loop=_loop+1
+	}
+	--
+	tmv0
+	--
+	"\n\n\q[× Close,bcls]\e"
+
+}
+
+スタンプ詳細 {
+
+res_marker=version
+
+	if spage=="" {spage=TOINT(reference[2])}
+
+	_No=spage
+
+	rpage=(_No/項目数)+1
+
+"\0\b[2]\![set,autoscroll,disable]\![set,choicetimeout,-1]\_q"
+	--
+
+	if _No<=0 ; "　　　"
+	else ;"\q[← Back,スタンプ詳細,%(_No-1),%(rpage)]"
+	--
+	" | \q[Top,stampmenu,%(rpage)] |"
+	--
+	if _No>=(ARRAYSIZE(stamplist))-1 ; ""
+	else ; " \q[Next →,スタンプ詳細,%(_No+1),%(rpage)]"
+	--
+	"\n\n"
+	--
+	_配列=SPLIT(stamplist[(spage)],(CHR(1)))
+	_日付=SPLIT((_配列[4]),".")
+	--
+	"/
+	\![*] \f[bold,1]%(_配列[2])\f[bold,0]\n\n[half]/
+	\_b[%(pluginpath)icon\%(_配列[1]),inline]\n\n[half]"
+	--
+		if (_配列[3])!="" {
+		"『%(_配列[3])』\n\n"
+		}
+	--
+	"By %(_配列[0])\n\n[half]/
+	押した日 %(_日付[0])年%(_日付[1])月%(_日付[2])日 %(_日付[3])時%(_日付[4])分\n\n\n/
+	"
+	--
+"\q[× Close,bcls]　\q[□ Stamp Menu,stampmenu,%(rpage)]\e"
+
+	spage=""
+}
+
+
+bcls {"\0\b[-1]\1\b[-1]\e"}
+
+
+
+// プラグインイベント ////////////////////////////////////////
+
+//スタンプ追加
+
+OnStampAdd {
+
+stampinfo
+res_target = '__SYSTEM_ALL_GHOST__'
+
+// reference[0] スタンプ画像パス
+// reference[1] スタンプタイトル
+// reference[2] スタンプコメント
+// sender ゴーストタイトル
+
+	//起動中ゴーストパスリストからパスを調べる
+	_l=0
+	foreach glist; _i {
+		if "%(sender)%(CHR(1))" _in_ _i {
+		path=REPLACE(_i,"%(sender)%(CHR(1))","")
+		}
+	_l++
+	}
+
+if (reference[0])=="" {path="ghost\master\stamp.png"}
+else {path="%(path)%(reference[0])"}
+
+	//アイコンの存在確認
+	if (FATTRIB(path))!=-1 {
+
+	//画像情報確認
+	_形式=FUNCTIONEX('imgctl_saori.dll','GetImageType',path)
+	_HDIB=FUNCTIONEX('imgctl_saori.dll','ToDIB',path)
+	_情報=FUNCTIONEX('imgctl_saori.dll','HeadDIB',_HDIB)
+	_情報=SPLIT(_情報, ',')
+	_f=FUNCTIONEX('imgctl_saori.dll','DeleteDIB',_HDIB)
+
+		if "%(_形式)_%(_情報[0])_%(_情報[1])"=='PNG_32_32' {
+
+
+			stampfn = "%((ARRAYSIZE(stamplist))+1).png"
+
+			//スタンプリストに同じデータが既にあるか調べる
+			_l=0
+			_r=""
+			foreach stamplist; _i {
+
+				_r=(STRSTR(_i,"%(sender)%(CHR(1))",0))
+				//ある場合データに更新があるか確認
+				if _r==0 {
+				_配列=SPLIT(_i,(CHR(1)))
+				_md51=(FDIGEST("icon\%(_配列[1])","MD5"))
+				_md52=(FDIGEST(path,"MD5"))
+
+					if _md51==_md52 && スタンプタイトル==(_配列[2]) && スタンプコメント==(_配列[3]) {
+					//更新がなければ何もしないまま終了
+					return
+					}
+					{
+					//更新があれば古いデータを一旦削除
+					_y=SPLIT((stamplist[(_l)]),"%(CHR(1))")
+					stampfn=_y[1]
+					stamplist[(_l)]=IARRAY
+
+					}
+				break
+				}
+
+			_l++
+			}
+			//アイコン新規追加
+			_f=FCOPY(path,"")
+			_f=FDEL("icon\%(stampfn)")
+			_f=FRENAME("%(SPLITPATH(path)[2])%(SPLITPATH(path)[3])","icon\%(stampfn)")
+			_t="%(sender)%(CHR(1))%(stampfn)%(CHR(1))%(スタンプタイトル)%(CHR(1))%(スタンプコメント)%(CHR(1))%(year).%(month).%(day).%(hour).%(minute).%(second)"
+			stamplist = (_t,stamplist)
+
+		}
+	}
+
+
+}
+
+
+
+スタンプタイトル {
+	if reference[1]=="" {"%(sender)のスタンプ"}
+	else {
+	_tit=ScrS削除(reference[1])
+	_tit=REPLACE(_tit,(CHR(1)),'')
+	_tit=REPLACE(_tit,(CHR(2)),'')
+	_tit=REPLACE(_tit,(CHR(3)),'')
+	_tit
+	}
+
+}
+スタンプコメント {
+
+	_com=ScrS削除(reference[2])
+	_com=REPLACE(_com,(CHR(1)),'')
+	_com=REPLACE(_com,(CHR(2)),'')
+	_com=REPLACE(_com,(CHR(3)),'')
+	_com=REPLACE(_com,'<br>','\n')
+	_com
+
+}
+
+
+
+stampinfo {
+// reference[0] 全スタンプ個数
+// reference[1] 送信元ゴーストのスタンプが既にあるかどうか
+// reference[2] プラグインのパス
+// reference[3] スタンプ情報
+// reference[4] このプラグインが動いてるか
+
+	res_event = 'OnStampInfo'
+	res_reference[0] = 0
+	res_reference[1] = 0
+	res_reference[2] = pluginpath
+	res_reference[3] = 0
+	res_reference[4] = プラグイン起動
+
+	if res_reference[4]=="" {res_reference[4]=0}
+
+	_スタンプ数 = (ARRAYSIZE(stamplist))
+	if _スタンプ数!="" {res_reference[0] = _スタンプ数}
+
+		foreach stamplist; _i {
+			//あるなら1
+			if "%(sender)%(CHR(1))" _in_ _i {
+			res_reference[1] = 1
+			}
+
+			if res_reference[3]==0 {
+			res_reference[3]=_i
+			}
+			else {
+			res_reference[3]="%(res_reference[3])%(CHR(2))%(_i)"
+			}
+		_l++
+		}
+
+
+}
+
+OnStampInfoCall{stampinfo}
+
+
+// ゴースト方のイベント ////////////////////////////////////////
+
+
+
+OnGhostBoot {
+
+	//起動中ゴーストパスリストに追加
+glist = (glist,"%(sender)%(CHR(1))%(reference[4])")
+
+stampinfo
+}
+
+
+OnGhostExit {
+
+_l=0
+
+	//起動中ゴーストパスリストから削除
+	foreach glist; _i {
+		if "%(sender)%(CHR(1))"_in_ _i {
+		EVAL("glist[%(_l)]=IARRAY")
+		}
+	_l++
+	}
+
+}
+
+
+OnInstallComplete{stampinfo}
+OnInstallCompleteEx{stampinfo}
+
+
+// 自作関数 ////////////////////////////////////////
+
+エスケープ {
+_t=_argv[0]
+_t=REPLACE(_t, '\' , '\\' )
+_t=REPLACE(_t, '[' , '\[' )
+_t=REPLACE(_t, ']' , '\]' )
+_t=REPLACE(_t, '%' , '\%' )
+_t
+}
+
+ScrS削除 {
+_t=_argv[0]
+_t=RE_REPLACE(_t, '\\(\\|q\[.*?\]\[.*?\]|[!&8fijmpqsn]\[.*?\]|[-*+01456bcehntuvxz]|_[ablmsuvw]\[.*?\]|__(t|w\[.*?\])|_[!?+nqsV]|[wi][0-9])' , '' )
+_t
+}
+
+
+コンマ全角 {
+REPLACE(_argv[0], ',' , '，' )
+}
+
+pluginpath {GETSETTING(2)}
+
+
+ディレクトリ中PNG削除 {
+//_argv[0] ディレクトリパス
+
+	if (FATTRIB(_argv[0]))[2]==1 {
+		_dirf = FENUM(_argv[0],'|')
+		_dirf = SPLIT(_dirf,'|')
+			foreach _dirf ; _f {
+				if (RE_MATCH(_f,'.+\.png$'))==1  {
+				_i=FDEL("%(_argv[0])\%(_f)")
+				}
+			}
+	}
+}
+
+// ほか ////////////////////////////////////////
+
+OnChoiceSelect { (EVAL(reference[1])) }
+OnChoiceSelectEx { (EVAL(reference[1])) }
+
