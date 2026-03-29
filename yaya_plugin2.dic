@@ -1,10 +1,10 @@
 //******************************************************************************
 /*
 PLUGIN/2.0制御スクリプト for YAYA
-original PLUGIN/2.0 dic written by umeici.
 履歴
 ver. date     noted
 1.0  20080422 Initial Impl. by C.Ponapalt
+1.1  20080511 ScriptOption / EventOption
 */
 //******************************************************************************
 
@@ -42,21 +42,25 @@ load
 	sender                = ''
 	status                = ''
 
-
 	S_CHARSET = GETSETTING('charset.output')
-	E_CHARSET = GETSETTING('charset.extension')
 	
 	tempvarname = IARRAY
 	
+	//推奨
+	_a = GETFUNCLIST('OnSystemLoad')
+	_n = ARRAYSIZE(_a)
+	for _i = 0 ; _i < _n ; _i++
+	{
+		EVAL(_a[_i])
+	}
+	
+	//互換
 	_a = GETFUNCLIST('OnPluginLoad')
 	_n = ARRAYSIZE(_a)
 	for _i = 0 ; _i < _n ; _i++
 	{
 		EVAL(_a[_i])
 	}
-
-pload
-
 }
 
 //******************************************************************************
@@ -74,6 +78,7 @@ unload
 	var.req.key   = IARRAY
 	var.req.value = IARRAY
 
+	//互換
 	_a = GETFUNCLIST('OnPluginUnload')
 	_n = ARRAYSIZE(_a)
 	for _i = _n-1 ; _i >= 0 ; _i--
@@ -81,7 +86,13 @@ unload
 		EVAL(_a[_i])
 	}
 
-	OnUnload
+	//推奨
+	_a = GETFUNCLIST('OnSystemUnload')
+	_n = ARRAYSIZE(_a)
+	for _i = _n-1 ; _i >= 0 ; _i--
+	{
+		EVAL(_a[_i])
+	}
 
 	// 保存する必要のない変数を削除
 	ERASEVAR('REQ.COMMAND'  )
@@ -104,12 +115,13 @@ unload
 	ERASEVAR('status')
 	
 	ERASEVAR('S_CHARSET')
-	ERASEVAR('E_CHARSET')
 	
 	ERASEVAR('res_securitylevel')
 	ERASEVAR('res_reference')
 	ERASEVAR('res_marker')
 	ERASEVAR('res_event')
+	ERASEVAR('res_event_option')
+	ERASEVAR('res_script_option')
 	ERASEVAR('res_target')
 
 	_n = ARRAYSIZE(tempvarname)
@@ -120,9 +132,6 @@ unload
 	
 	PLUGINFW.ClearReferenceVariable
 	PLUGINFW.ClearValueexVariable
-
-punload
-
 }
 
 //------------------------------------------------------------------------------
@@ -277,7 +286,7 @@ OnRequest
 	when "GET" {
 		// GETリクエスト
 		_result = PLUGINFW.RaiseIDEvent
-		_refheader = PLUGINFW.AssembleReferenceHeader
+		_refheader = PLUGINFW.AssembleOptionalHeader
 		
 		if _refheader == '' && _result == '' {
 			PLUGINFW.MakeEmptyResponse(PLUGINFW.Eventid)
@@ -304,10 +313,10 @@ OnRequest
 }
 
 //------------------------------------------------------------------------------
-//関数名：PLUGINFW.AssembleReferenceHeader
-//機能　：res_reference*変数を順次検査して返送用のReference文字列を作成します
+//関数名：PLUGINFW.AssembleOptionalHeader
+//機能　：返送用の追加ヘッダ文字列を作成します
 //------------------------------------------------------------------------------
-PLUGINFW.AssembleReferenceHeader
+PLUGINFW.AssembleOptionalHeader
 {
 	_result = ''
 	if res_target != "" {
@@ -318,6 +327,14 @@ PLUGINFW.AssembleReferenceHeader
 	if res_event != "" {
 		_result += "Event: %(res_event)%(C_CRLF)"
 		ERASEVAR('res_event')
+	}
+	if res_event_option != "" {
+		_result += "EventOption: %(res_event_option)%(C_CRLF)"
+		ERASEVAR('res_event_option')
+	}
+	if res_script_option != "" {
+		_result += "ScriptOption: %(res_script_option)%(C_CRLF)"
+		ERASEVAR('res_script_option')
 	}
 	
 	_n = ARRAYSIZE(res_reference)
@@ -438,7 +455,7 @@ FUNCTIONEX
 
 	// リクエスト文字列を作成
 	_reqheader = /
-		"EXECUTE SAORI/1.0%(C_CRLF)Charset: %(E_CHARSET)%(C_CRLF)Sender: AYA%(C_CRLF)SecurityLevel: Local%(C_CRLF)"
+		"EXECUTE SAORI/1.0%(C_CRLF)Charset: %(CHARSETLIBEX(_argv[0]))%(C_CRLF)Sender: AYA%(C_CRLF)SecurityLevel: Local%(C_CRLF)"
 	for _i = 1; _i < _argc; _i++ {
 		_reqheader += "Argument%(_i - 1): %(_argv[_i])%(C_CRLF)"
 	}
@@ -467,7 +484,7 @@ SAORI { FUNCTIONEX(_argv) }
 //------------------------------------------------------------------------------
 PLUGINFW.SendGETVersion
 {
-	PLUGINFW.RequestLib(_argv[0], "GET Version SAORI/1.0%(C_CRLF)Charset: %(E_CHARSET)%(C_CRLF)Sender: AYA%(C_CRLF2)")
+	PLUGINFW.RequestLib(_argv[0], "GET Version SAORI/1.0%(C_CRLF)Charset: %(CHARSETLIBEX(_argv[0]))%(C_CRLF)Sender: AYA%(C_CRLF2)")
 
 	LIB.STATUSCODE
 }
@@ -682,13 +699,4 @@ memorytotalphys    { GETMEMINFO[1] }
 memoryavailphys    { GETMEMINFO[2] }
 memorytotalvirtual { GETMEMINFO[3] }
 memoryavailvirtual { GETMEMINFO[4] }
-
-ASC
-{
-	if !_argc;                              " "
-	elseif GETTYPE(_argv[0]) != 1;          " "
-	elseif _argv[0] < 0 || _argv[0] > 0x7f; " "
-	else;                                   CHR(_argv[0])
-}
-
 
