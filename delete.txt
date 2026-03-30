@@ -1,0 +1,3 @@
+imgctl.dll
+imgctl_saori.dll
+yaya_plugin2.dic
