@@ -19,7 +19,7 @@
 //
 
 
-version{'StampCollection/1.4'}
+version{'StampCollection/1.4.1'}
 
 
 // プラグインロード ////////////////////////////////////////
