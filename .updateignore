@@ -3,5 +3,7 @@ CLAUDE.md
 .claude/
 .github/
 .git/
+icon/
+profile/
 .gitignore
 yaya_variable.cfg.ayc

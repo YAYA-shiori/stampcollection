@@ -5,6 +5,7 @@ PLUGIN/2.0制御スクリプト for YAYA
 ver. date     noted
 1.0  20080422 Initial Impl. by C.Ponapalt
 1.1  20080511 ScriptOption / EventOption
+1.2  20260330 GET/SET_PROPERTY, PLUGINFW.HWnd
 */
 //******************************************************************************
 
@@ -44,6 +45,8 @@ load
 
 	S_CHARSET = GETSETTING('charset.output')
 	
+	PLUGINFW.HWnd         = IARRAY()
+
 	tempvarname = IARRAY
 	
 	//推奨
@@ -106,7 +109,8 @@ unload
 	ERASEVAR('var.lib.value' )
 	ERASEVAR('var.lib.result')
 
-	ERASEVAR('PLUGINFW.Eventid'    )
+	ERASEVAR('PLUGINFW.Eventid')
+	ERASEVAR('PLUGINFW.HWnd')
 	ERASEVAR('SAORI.DllList')
 
 	ERASEVAR('basewarename')
@@ -364,10 +368,20 @@ PLUGINFW.RaiseIDEvent
 	
 	_event = PLUGINFW.Eventid
 	
+	_result_internal = ''
+	if _event != 'OnSecondChange' {
+		if ISFUNC('PLUGINEV.' + _event) {
+			_result_internal = TOSTR(EVAL('PLUGINEV.' + _event))
+		}
+	}
+	
 	// イベント活性化
 	_result = ''
 	if ISFUNC(_event) {
 		_result = EVAL(_event)
+	}
+	if _result == '' {
+		_result = _result_internal
 	}
 	if _result != '' {
 		_result
@@ -476,6 +490,87 @@ FUNCTIONEX
 //        気にするほどではありません。
 //------------------------------------------------------------------------------
 SAORI { FUNCTIONEX(_argv) }
+
+
+//------------------------------------------------------------------------------
+//関数名：GET_PROPERTY
+//機能　：システム関数DIRECTSSTPを使って、指定した本体プロパティを取得します
+//引数　：_argv[0] = プロパティ名
+//返値　：失敗時空文字列、成功時プロパティの値
+//------------------------------------------------------------------------------
+GET_PROPERTY
+{
+	if _argc < 1 {
+		""
+		return
+	}
+	
+	_request = "EXECUTE SSTP/1.1%(C_CRLF)Command: GetProperty%(C_CRLF)Reference0: %(_argv[0])%(C_CRLF)Sender: YAYA%(C_CRLF)Charset: UTF-8%(C_CRLF)%(C_CRLF)"
+	
+	_response = DIRECTSSTP(PLUGINFW.HWnd[0],_request)
+	if _response == -1 {
+		""
+		return
+	}
+	
+	_respose_array = SPLIT(_response,C_CRLF)
+	
+	if "200" !_in_ _respose_array[0] && "204" !_in_ _respose_array[0] {
+		""
+		return
+	}
+	
+	_n = ARRAYSIZE(_respose_array)
+	_value = ""
+	_empty_line_found = 0
+	for _i = 1 ; _i < _n ; _i++ {
+		if _respose_array[_i] == "" {
+			_empty_line_found = 1
+			continue
+		}
+		if _empty_line_found {
+			_value += _respose_array[_i]
+			if _empty_line_found >= 2 {
+				_value += C_CRLF
+			}
+			else {
+				_empty_line_found = 2
+			}
+		}
+	}
+	
+	_value
+}
+
+//------------------------------------------------------------------------------
+//関数名：SET_PROPERTY
+//機能　：システム関数DIRECTSSTPを使って、指定した本体プロパティを設定します
+//引数　：_argv[0] = プロパティ名 _argv[1] = 値
+//------------------------------------------------------------------------------
+SET_PROPERTY
+{
+	if _argc < 2 {
+		0
+		return
+	}
+	
+	_request = "EXECUTE SSTP/1.1%(C_CRLF)Command: SetProperty%(C_CRLF)Reference0: %(_argv[0])%(C_CRLF)Reference1: %(_argv[1])%(C_CRLF)Sender: YAYA%(C_CRLF)Charset: UTF-8%(C_CRLF)%(C_CRLF)"
+
+	_response = DIRECTSSTP(PLUGINFW.HWnd[0],_request)
+	if _response == -1 {
+		0
+		return
+	}
+	
+	_respose_array = SPLIT(_response,C_CRLF)
+
+	if "200" _in_ _respose_array[0] || "204" _in_ _respose_array[0] {
+		1
+		return
+	}
+	0
+	return
+}
 
 //------------------------------------------------------------------------------
 //関数名：PLUGINFW.SendGETVersion
@@ -605,6 +700,29 @@ PLUGINFW.RegisterTempVar
 	}
 }
 
+//------------------------------------------------------------------------------
+//関数名：PLUGINEV.OnGhostBoot,Exit
+//機能　：ゴースト起動・終了時に発生
+//------------------------------------------------------------------------------
+PLUGINEV.OnGhostBoot : void
+{
+	_hwnd = TOINT(SPLIT(reference[0],CHR(1))[0])
+	
+	_as = ASEARCH(_hwnd,PLUGINFW.HWnd)
+	if _as < 0 {
+		PLUGINFW.HWnd ,= _hwnd
+	}
+}
+
+PLUGINEV.OnGhostExit : void
+{
+	_hwnd = TOINT(SPLIT(reference[0],CHR(1))[0])
+	
+	_as = ASEARCH(_hwnd,PLUGINFW.HWnd)
+	if _as >= 0 {
+		PLUGINFW.HWnd[_as] = IARRAY
+	}
+}
 
 //******************************************************************************
 //配列操作
@@ -615,10 +733,10 @@ JOIN
 		_argv[0]
 		return
 	}
-	
+
 	_delim = _argv[_argc - 1]
 	_argc--
-	
+
 	_text = _argv[0]
 	for _i = 1 ; _i < _argc ; _i++ {
 		_text += _delim
@@ -636,6 +754,11 @@ REVERSE
 	_a
 }
 
+UNIQUE
+{
+	ARRAYDEDUP(_argv)
+}
+
 SPLITEX
 {
 	_a = SPLIT(_argv)
@@ -646,6 +769,37 @@ SPLITEX
 		}
 	}
 	_a
+}
+
+MAX
+{
+	_v = _argv[0]
+	for _i = 1 ; _i < _argc ; _i++ {
+		if _v < _argv[_i] {
+			_v = _argv[_i]
+		}
+	}
+	_v
+}
+
+MIN
+{
+	_v = _argv[0]
+	for _i = 1 ; _i < _argc ; _i++ {
+		if _v > _argv[_i] {
+			_v = _argv[_i]
+		}
+	}
+	_v
+}
+
+AVERAGE
+{
+	_v = 0
+	for _i = 0 ; _i < _argc ; _i++ {
+		_v += _argv[_i]
+	}
+	_v / _argc
 }
 
 //******************************************************************************

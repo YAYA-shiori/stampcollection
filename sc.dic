@@ -156,7 +156,7 @@ stampmenu{
 
 スタンプ詳細 {
 
-res_marker=version
+	res_marker=version
 
 	if spage=="" {spage=TOINT(reference[2])}
 
@@ -330,16 +330,16 @@ stampinfo {
 	foreach stamplist; _i {
 		//あるなら1
 		if "%(sender)%(CHR(1))" _in_ _i {
-		res_reference[1] = 1
+			res_reference[1] = 1
 		}
 
 		if res_reference[3]==0 {
-		res_reference[3]=_i
+			res_reference[3]=_i
 		}
 		else {
-		res_reference[3]="%(res_reference[3])%(CHR(2))%(_i)"
+			res_reference[3]="%(res_reference[3])%(CHR(2))%(_i)"
 		}
-	_l++
+		_l++
 	}
 
 
@@ -368,7 +368,7 @@ OnGhostExit {
 	//起動中ゴーストパスリストから削除
 	foreach glist; _i {
 		if "%(sender)%(CHR(1))"_in_ _i {
-		EVAL("glist[%(_l)]=IARRAY")
+			EVAL("glist[%(_l)]=IARRAY")
 		}
 		_l++
 	}
