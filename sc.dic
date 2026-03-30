@@ -232,11 +232,18 @@ OnStampAdd {
 	if (FATTRIB(path))!=-1 {
 
 		//画像情報確認
-		_形式=FUNCTIONEX('imgctl_saori.dll','GetImageType',path)
-		_HDIB=FUNCTIONEX('imgctl_saori.dll','ToDIB',path)
-		_情報=FUNCTIONEX('imgctl_saori.dll','HeadDIB',_HDIB)
-		_情報=SPLIT(_情報, ',')
-		_f=FUNCTIONEX('imgctl_saori.dll','DeleteDIB',_HDIB)
+		void FOPEN(path,'rb')
+		_fb = FREADBIN(path,24,CHR(1))
+		void FCLOSE(path)
+		
+		_形式 = ''
+		if (SUBSTR(_fb,1,3) == "PNG") && (SUBSTR(_fb,12,4) == "IHDR") {
+			_形式 = 'PNG'
+		}
+		
+		_情報 = IARRAY()
+		_情報[0] = CHRCODE(_fb,19)
+		_情報[1] = CHRCODE(_fb,23)
 
 		if "%(_形式)_%(_情報[0])_%(_情報[1])"=='PNG_32_32' {
 
